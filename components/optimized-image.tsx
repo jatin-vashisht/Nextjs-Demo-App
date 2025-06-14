@@ -2,8 +2,6 @@
 
 import Image from "next/image"
 import { useEffect, useState } from "react"
-import { getCloudflareImageUrl } from "../lib/actions/image-actions"
-import { getCachedImageUrl, setCachedImageUrl } from "../lib/image-cache"
 
 interface OptimizedImageProps {
   imageId: string
@@ -32,19 +30,16 @@ export function OptimizedImage({
 
   useEffect(() => {
     async function fetchImageUrl() {
-      // Check cache first
-      const cachedUrl = getCachedImageUrl(imageId, variant)
-      if (cachedUrl) {
-        setImageUrl(cachedUrl)
-        setLoading(false)
-        return
-      }
-
       try {
-        const url = await getCloudflareImageUrl(imageId, variant)
-        if (url) {
-          setImageUrl(url)
-          setCachedImageUrl(imageId, variant, url)
+        const response = await fetch(`/api/images/${imageId}?variant=${variant}`)
+
+        if (response.ok) {
+          interface ImageResponse {
+            imageUrl: string;
+          }
+          
+          const data = await response.json() as ImageResponse;
+          setImageUrl(data.imageUrl)
         } else {
           setError(true)
         }
@@ -60,12 +55,24 @@ export function OptimizedImage({
   }, [imageId, variant])
 
   if (loading) {
-    return <div className={`bg-gray-200 animate-pulse ${className}`} style={{ width, height }} />
+    return (
+      <div
+        className={`bg-gray-200 animate-pulse ${className}`}
+        style={{ width, height }}
+        role="img"
+        aria-label="Loading image..."
+      />
+    )
   }
 
   if (error || !imageUrl) {
     return (
-      <div className={`bg-gray-300 flex items-center justify-center ${className}`} style={{ width, height }}>
+      <div
+        className={`bg-gray-300 flex items-center justify-center ${className}`}
+        style={{ width, height }}
+        role="img"
+        aria-label="Image not found"
+      >
         <span className="text-gray-500 text-sm">Image not found</span>
       </div>
     )

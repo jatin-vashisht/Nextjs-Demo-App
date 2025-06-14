@@ -9,7 +9,6 @@ export function middleware(request: NextRequest) {
     // Set cache headers for edge caching
     response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400")
     response.headers.set("CDN-Cache-Control", "public, s-maxage=86400")
-    response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=86400")
 
     return response
   }

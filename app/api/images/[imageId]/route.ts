@@ -1,37 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getFromKV, putToKV } from "@/lib/cloudflare-kv"
 
-export const runtime = "edge"
+// Remove edge runtime - use Node.js runtime for OpenNext compatibility
+// export const runtime = "edge"
 
-export async function GET(request: NextRequest, { params }: { params: { imageId: string } }) {
-  const { imageId } = params
+export async function GET(request: NextRequest, context: { params: Promise<{ imageId: string }> }) {
+  const { imageId } = await context.params
   const { searchParams } = new URL(request.url)
   const variant = searchParams.get("variant") || "public"
 
-  const cacheKey = `${imageId}-${variant}`
-
   try {
-    // Check KV cache first
-    const cachedUrl = await getFromKV(cacheKey)
-
-    if (cachedUrl) {
-      return NextResponse.json(
-        {
-          imageUrl: cachedUrl,
-          imageId,
-          variant,
-          source: "kv-cache",
-        },
-        {
-          headers: {
-            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-            "CF-Cache-Status": "KV-HIT",
-          },
-        },
-      )
-    }
-
-    // Fetch from Cloudflare Images API
+    // Get environment variables
     const apiToken = process.env.CLOUDFLARE_API_TOKEN
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
     const imageHash = process.env.CLOUDFLARE_IMAGE_HASH
@@ -40,6 +18,11 @@ export async function GET(request: NextRequest, { params }: { params: { imageId:
       return NextResponse.json({ error: "Missing configuration" }, { status: 500 })
     }
 
+    // For now, we'll construct the URL directly since we can't use KV in Node.js runtime
+    // In production, this will be handled by the Cloudflare Worker
+    const imageUrl = `https://imagedelivery.net/${imageHash}/${imageId}/${variant}`
+
+    // Verify the image exists by calling the API
     const apiResponse = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1/${imageId}`, {
       headers: {
         Authorization: `Bearer ${apiToken}`,
@@ -51,16 +34,18 @@ export async function GET(request: NextRequest, { params }: { params: { imageId:
       return NextResponse.json({ error: "Image not found" }, { status: 404 })
     }
 
-    const data = await apiResponse.json()
+    // Define the type for Cloudflare API response
+    interface CloudflareApiResponse {
+      success: boolean;
+      result?: Record<string, unknown>;
+      errors?: Array<{ code: number; message: string }>;
+    }
+
+    const data = await apiResponse.json() as CloudflareApiResponse
 
     if (!data.success) {
       return NextResponse.json({ error: "API error" }, { status: 404 })
     }
-
-    const imageUrl = `https://imagedelivery.net/${imageHash}/${imageId}/${variant}`
-
-    // Cache in KV for 24 hours
-    await putToKV(cacheKey, imageUrl, 86400)
 
     return NextResponse.json(
       {
@@ -72,7 +57,6 @@ export async function GET(request: NextRequest, { params }: { params: { imageId:
       {
         headers: {
           "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-          "CF-Cache-Status": "MISS",
         },
       },
     )

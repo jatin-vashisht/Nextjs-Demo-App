@@ -36,10 +36,10 @@
 	"vars": {
 		"CLOUDFLARE_ACCOUNT_ID": "5325dc2a943ec4614d2928ac6630e534",
 		"CLOUDFLARE_IMAGE_HASH": "ByWhyLx-K3geRo4BkRKQHQ"
-	}
+	},
 
 	/**
 	 * Smart Placement for optimal performance
 	 */
-	// "placement": { "mode": "smart" }
+	"placement": { "mode": "smart" }
 }

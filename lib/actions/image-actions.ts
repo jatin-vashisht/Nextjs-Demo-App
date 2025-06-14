@@ -17,8 +17,9 @@ interface CloudflareImageResponse {
 export async function getCloudflareImageUrl(imageId: string, variant = "public"): Promise<string | null> {
   const apiToken = process.env.CLOUDFLARE_API_TOKEN
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+  const imageHash = process.env.CLOUDFLARE_IMAGE_HASH
 
-  if (!apiToken || !accountId) {
+  if (!apiToken || !accountId || !imageHash) {
     console.error("Missing Cloudflare credentials")
     return null
   }
@@ -45,9 +46,8 @@ export async function getCloudflareImageUrl(imageId: string, variant = "public")
       return null
     }
 
-    // Construct the image delivery URL
-    const baseUrl = `https://imagedelivery.net/${process.env.CLOUDFLARE_IMAGE_HASH}`
-    return `${baseUrl}/${imageId}/${variant}`
+    // Construct the image delivery URL using the hash from environment
+    return `https://imagedelivery.net/${imageHash}/${imageId}/${variant}`
   } catch (error) {
     console.error("Error fetching Cloudflare image:", error)
     return null
